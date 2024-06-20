@@ -42,3 +42,32 @@ def fetch_kucoin_data(symbol='BTC/USDT', timeframe='1d', since=None, until=None,
     all_data.set_index('timestamp', inplace=True)
     all_data.rename(columns={'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
     return all_data[all_data.index <= until]
+
+def calculate_optimal_value(data, initial_cash=10000, commission=0.001):
+    cash = initial_cash
+    holdings = False  # Initially not holding any position
+    earnings = 0
+
+    for i in range(len(data) - 1):
+        current_win = data['Close'].iloc[i] > data['Open'].iloc[i]
+        next_win = data['Close'].iloc[i + 1] > data['Open'].iloc[i + 1]
+
+        # Buy condition: Not holding and change from loss to win
+        if not holdings and not current_win and next_win:
+            buy_price = data['Close'].iloc[i]
+            # Subtract commission from cash
+            cash -= cash * commission
+            holdings = True  # Now holding a position
+
+        # Sell condition: Holding and change from win to loss
+        elif holdings and current_win and not next_win:
+            sell_price = data['Close'].iloc[i]
+            percent_change = (sell_price - buy_price) / buy_price
+            profit = percent_change * cash
+            # Subtract commission from profit
+            profit -= profit * commission
+            cash += profit
+            earnings += profit
+            holdings = False  # Sold the position
+
+    return earnings, cash
